@@ -11,8 +11,9 @@ import java.util.Random;
 
 public class Main {
     private static final int POPULATION_SIZE = 100;
-    private static final double CROSSOVER_RATE = 0.9;
-    private static final double MUTATION_RATE = 0.5;
+    private static final double CROSSOVER_RATE = 1;
+    private static final double MUTATION_RATE = 0.7;
+    private static final int RESTART_GENERATION = 10000;
     private static final Random random = new Random();
 
     private static final List<String> words = new ArrayList<>();
@@ -71,17 +72,23 @@ public class Main {
 
         int generation = 0;
         while (true) {
+            if (generation >= RESTART_GENERATION) {
+                population = initializePopulation();
+                generation = 0;
+            }
+
+            // Getting the best layout recalculating fitness
             CrosswordLayout bestLayout = getBestLayout(population);
 
-            System.out.println("Generation " + generation + " - Fitness: " + bestLayout.calculateFitness());
-
-            if (bestLayout.calculateFitness() <= 0) {
+            if (bestLayout.getCurrentFitness() <= 0) {
+                System.out.println("Generation " + generation + " - Fitness: " + bestLayout.calculateFitness());
                 bestLayout.printCrossword();
                 System.out.println("Solution found!");
                 break;
             }
 
             List<CrosswordLayout> newGeneration = new ArrayList<>();
+
             for (int i = 0; i < POPULATION_SIZE; i++) {
                 CrosswordLayout parent1 = selectParent(population);
                 CrosswordLayout parent2 = selectParent(population);
@@ -113,13 +120,12 @@ public class Main {
         return bestLayout;
     }
 
-    // TODO reconsider (may be more optimal choice)
     private static CrosswordLayout selectParent(List<CrosswordLayout> population) {
         int tournamentSize = 5;
         CrosswordLayout bestLayout = population.get(random.nextInt(population.size()));
         for (int i = 1; i < tournamentSize; i++) {
             CrosswordLayout candidate = population.get(random.nextInt(population.size()));
-            if (candidate.calculateFitness() < bestLayout.calculateFitness()) {
+            if (candidate.getCurrentFitness() < bestLayout.getCurrentFitness()) {
                 bestLayout = candidate;
             }
         }
@@ -138,6 +144,17 @@ public class Main {
         if (random.nextDouble() < MUTATION_RATE) {
             layout.mutate();
         }
+    }
+
+    private static CrosswordLayout getWorstLayout(List<CrosswordLayout> population) {
+        CrosswordLayout worstLayout = population.get(0);
+        for (int i = 1; i < population.size(); i++) {
+            CrosswordLayout candidate = population.get(i);
+            if (candidate.getCurrentFitness() > worstLayout.getCurrentFitness()) {
+                worstLayout = candidate;
+            }
+        }
+        return worstLayout;
     }
 }
 
@@ -160,8 +177,8 @@ class CrosswordLayout {
     private static final char[][] grid = new char[GRID_SIZE][GRID_SIZE];
     private static final Random random = new Random();
     private final List<CrosswordWord> words;
+    private int currentFitness;
 
-    // TODO double check initial generation
     public CrosswordLayout(List<String> inputWords) {
         this.words = new ArrayList<>();
         for (String word : inputWords) {
@@ -170,6 +187,10 @@ class CrosswordLayout {
             int orientation = random.nextInt(2); // 0 for horizontal, 1 for vertical
             words.add(new CrosswordWord(word, row, col, orientation));
         }
+    }
+
+    public int getCurrentFitness() {
+        return currentFitness;
     }
 
     private void resetGrid() {
@@ -191,6 +212,8 @@ class CrosswordLayout {
         fitness += connectivityCheck();
         fitness += neighbouringWordsCheck();
 
+        this.currentFitness = fitness;
+
         return fitness;
     }
 
@@ -211,6 +234,60 @@ class CrosswordLayout {
             }
         }
         return penalty;
+    }
+
+    private CrosswordWord getWordByCoordinates(int row, int col, int orientation) {
+        for (CrosswordWord word: words) {
+            if (word.row == row && word.col == col && word.orientation == orientation) {
+                return word;
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isCrossingWordAbsent(CrosswordWord currentWord, boolean isFirstChar) {
+        int row;
+        int col;
+        if (currentWord.orientation == 0) {
+            row = currentWord.row - 1;
+            if (isFirstChar) {
+                col = currentWord.col;
+            } else {
+                col = currentWord.col + currentWord.word.length() - 1;
+            }
+
+            while (charInBounds(row, col) && grid[row][col] != '-') {
+                CrosswordWord crossingWord = getWordByCoordinates(row, col, 1);
+
+                if (crossingWord != null && (crossingWord.row + crossingWord.word.length() - 1) >= currentWord.row) {
+                    return false;
+                }
+
+                row -= 1;
+            }
+
+        } else {
+            if (isFirstChar) {
+                row = currentWord.row;
+            } else {
+                row = currentWord.row + currentWord.word.length() - 1;
+            }
+
+            col = currentWord.col - 1;
+            while (charInBounds(row, col) && grid[row][col] != '-') {
+                CrosswordWord crossingWord = getWordByCoordinates(row, col, 0);
+
+                if (crossingWord != null && (crossingWord.col + crossingWord.word.length() - 1) >= currentWord.col) {
+                    return false;
+                }
+
+                col -= 1;
+            }
+
+        }
+
+        return true;
     }
 
     private int neighbouringWordsCheck() {
@@ -235,10 +312,24 @@ class CrosswordLayout {
                             if (charInBounds(row, col - 1) && grid[row][col - 1] != '-') {
                                 penalty += 10; // penalty for adjacent word from the left
                             }
+
+                            // Check for crossing word
+                            if (charInBounds(row - 1, col) && grid[row - 1][col] != '-') {
+                                if (isCrossingWordAbsent(word, true)) {
+                                    penalty += 10;
+                                }
+                            }
                         }
                         else if (charIdx == charArray.length - 1) { // Last char check
                             if (charInBounds(row, col + 1) && grid[row][col + 1] != '-') {
                                 penalty += 10; // penalty for adjacent word from the right
+                            }
+
+                            // Check for crossing word
+                            if (charInBounds(row - 1, col) && grid[row - 1][col] != '-') {
+                                if (isCrossingWordAbsent(word, false)) {
+                                    penalty += 10;
+                                }
                             }
                         }
 
@@ -269,10 +360,24 @@ class CrosswordLayout {
                             if (charInBounds(row - 1, col) && grid[row - 1][col] != '-') {
                                 penalty += 10; // penalty for adjacent word from the up
                             }
+
+                            // Check for crossing word
+                            if (charInBounds(row, col - 1) && grid[row][col - 1] != '-') {
+                                if (isCrossingWordAbsent(word, true)) {
+                                    penalty += 10;
+                                }
+                            }
                         }
                         else if (charIdx == charArray.length - 1) { // Last char check
                             if (charInBounds(row + 1, col) && grid[row + 1][col] != '-') {
                                 penalty += 10; // penalty for adjacent word from the down
+                            }
+
+                            // Check for crossing word
+                            if (charInBounds(row, col - 1) && grid[row][col - 1] != '-') {
+                                if (isCrossingWordAbsent(word, false)) {
+                                    penalty += 10;
+                                }
                             }
                         }
 
@@ -353,7 +458,7 @@ class CrosswordLayout {
         dfs(row, col + 1, visited);
     }
 
-    // TODO reconsider
+    // TODO check the best option
     public CrosswordLayout crossover(CrosswordLayout partner) {
         CrosswordLayout child = new CrosswordLayout(new ArrayList<>());
 
@@ -361,9 +466,15 @@ class CrosswordLayout {
             CrosswordWord parent1Word = this.words.get(i);
             CrosswordWord parent2Word = partner.words.get(i);
 
-            int row = random.nextBoolean() ? parent1Word.row : parent2Word.row;
-            int col = random.nextBoolean() ? parent1Word.col : parent2Word.col;
-            int orientation = random.nextBoolean() ? parent1Word.orientation : parent2Word.orientation;
+            boolean wordParen = random.nextBoolean();
+
+            int row = wordParen ? parent1Word.row : parent2Word.row;
+            int col = wordParen ? parent1Word.col : parent2Word.col;
+            int orientation = wordParen ? parent1Word.orientation : parent2Word.orientation;
+
+//            int row = random.nextBoolean() ? parent1Word.row : parent2Word.row;
+//            int col = random.nextBoolean() ? parent1Word.col : parent2Word.col;
+//            int orientation = random.nextBoolean() ? parent1Word.orientation : parent2Word.orientation;
 
             child.words.add(new CrosswordWord(parent1Word.word, row, col, orientation));
         }
