@@ -11,9 +11,9 @@ import java.util.Random;
 
 public class Main {
     private static final int POPULATION_SIZE = 100;
-    private static final double CROSSOVER_RATE = 1;
+    private static final double CROSSOVER_RATE = 0.9;
     private static final double MUTATION_RATE = 0.7;
-    private static final int RESTART_GENERATION = 10000;
+    private static final int RESTART_GENERATION = 100000;
     private static final Random random = new Random();
 
     private static final List<String> words = new ArrayList<>();
@@ -71,17 +71,24 @@ public class Main {
         List<CrosswordLayout> population = initializePopulation();
 
         int generation = 0;
+        int iteration = 1;
+        System.out.println("Iteration: " + iteration);
+
         while (true) {
             if (generation >= RESTART_GENERATION) {
                 population = initializePopulation();
                 generation = 0;
+                iteration++;
+                System.out.println("Iteration: " + iteration);
             }
 
             // Getting the best layout recalculating fitness
             CrosswordLayout bestLayout = getBestLayout(population);
 
+            double avgFitness = getAverageFitness(population);
+
             if (bestLayout.getCurrentFitness() <= 0) {
-                System.out.println("Generation " + generation + " - Fitness: " + bestLayout.calculateFitness());
+                System.out.println("Generation " + generation + " - Average fitness: " + avgFitness + " - Best fitness: " + bestLayout.calculateFitness());
                 bestLayout.printCrossword();
                 System.out.println("Solution found!");
                 break;
@@ -108,6 +115,16 @@ public class Main {
             population.add(new CrosswordLayout(words));
         }
         return population;
+    }
+
+    private static double getAverageFitness(List<CrosswordLayout> population) {
+        int totalFitness = 0;
+
+        for (int i = 0; i < population.size(); i++) {
+            totalFitness += population.get(i).getCurrentFitness();
+        }
+
+        return totalFitness / population.size();
     }
 
     private static CrosswordLayout getBestLayout(List<CrosswordLayout> population) {
@@ -466,15 +483,15 @@ class CrosswordLayout {
             CrosswordWord parent1Word = this.words.get(i);
             CrosswordWord parent2Word = partner.words.get(i);
 
-            boolean wordParen = random.nextBoolean();
+//            boolean wordParen = random.nextBoolean();
+//
+//            int row = wordParen ? parent1Word.row : parent2Word.row;
+//            int col = wordParen ? parent1Word.col : parent2Word.col;
+//            int orientation = wordParen ? parent1Word.orientation : parent2Word.orientation;
 
-            int row = wordParen ? parent1Word.row : parent2Word.row;
-            int col = wordParen ? parent1Word.col : parent2Word.col;
-            int orientation = wordParen ? parent1Word.orientation : parent2Word.orientation;
-
-//            int row = random.nextBoolean() ? parent1Word.row : parent2Word.row;
-//            int col = random.nextBoolean() ? parent1Word.col : parent2Word.col;
-//            int orientation = random.nextBoolean() ? parent1Word.orientation : parent2Word.orientation;
+            int row = random.nextBoolean() ? parent1Word.row : parent2Word.row;
+            int col = random.nextBoolean() ? parent1Word.col : parent2Word.col;
+            int orientation = random.nextBoolean() ? parent1Word.orientation : parent2Word.orientation;
 
             child.words.add(new CrosswordWord(parent1Word.word, row, col, orientation));
         }
@@ -487,8 +504,8 @@ class CrosswordLayout {
         CrosswordWord word = words.get(wordIndex);
 
         // Randomly change word's position or orientation
-        word.row = random.nextInt(GRID_SIZE);
-        word.col = random.nextInt(GRID_SIZE);
+        word.row = random.nextInt(GRID_SIZE - 1);
+        word.col = random.nextInt(GRID_SIZE - 1);
         word.orientation = random.nextInt(2);
     }
 
