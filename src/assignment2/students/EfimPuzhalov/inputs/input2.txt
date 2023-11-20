@@ -8,3 +8,5 @@ pillow
 train
 widow
 wine
+car
+tractor

@@ -1,4 +1,4 @@
-package assignment2.students;
+package assignment2.students.EfimPuzhalov;
 import java.io.File;
 import java.io.FileReader;
 import java.io.BufferedReader;
@@ -9,10 +9,10 @@ import java.util.List;
 import java.util.Random;
 
 
-public class Main {
-    private static final int POPULATION_SIZE = 100;
-    private static final double CROSSOVER_RATE = 0.9;
-    private static final double MUTATION_RATE = 0.7;
+public class EfimPuzhalov {
+    private static final int POPULATION_SIZE = 100; // 100
+    private static final double CROSSOVER_RATE = 0.9; // 0.9
+    private static final double MUTATION_RATE = 0.7; // 7
     private static final int RESTART_GENERATION = 100000;
     private static final Random random = new Random();
 
@@ -88,25 +88,30 @@ public class Main {
             double avgFitness = getAverageFitness(population);
 
             if (bestLayout.getCurrentFitness() <= 0) {
-                System.out.println("Generation " + generation + " - Average fitness: " + avgFitness + " - Best fitness: " + bestLayout.calculateFitness());
+                System.out.println("Generation: " + generation + " | Average fitness: " + avgFitness + " | Best fitness: " + bestLayout.calculateFitness());
                 bestLayout.printCrossword();
                 System.out.println("Solution found!");
                 break;
             }
 
-            List<CrosswordLayout> newGeneration = new ArrayList<>();
-
-            for (int i = 0; i < POPULATION_SIZE; i++) {
-                CrosswordLayout parent1 = selectParent(population);
-                CrosswordLayout parent2 = selectParent(population);
-                CrosswordLayout child = crossover(parent1, parent2);
-                mutate(child);
-                newGeneration.add(child);
-            }
-
-            population = newGeneration;
+            population = produceNewGeneration(population);
             generation++;
         }
+    }
+
+    private static List<CrosswordLayout> produceNewGeneration(List<CrosswordLayout> population) {
+        List<CrosswordLayout> newGeneration = new ArrayList<>();
+        newGeneration.add(new CrosswordLayout(words));
+
+        for (int i = 1; i < POPULATION_SIZE; i++) {
+            CrosswordLayout parent1 = selectParent(population);
+            CrosswordLayout parent2 = selectParent(population);
+            CrosswordLayout child = crossover(parent1, parent2);
+            mutate(child);
+            newGeneration.add(child);
+        }
+
+        return newGeneration;
     }
 
     private static List<CrosswordLayout> initializePopulation() {
@@ -120,11 +125,11 @@ public class Main {
     private static double getAverageFitness(List<CrosswordLayout> population) {
         int totalFitness = 0;
 
-        for (int i = 0; i < population.size(); i++) {
-            totalFitness += population.get(i).getCurrentFitness();
+        for (CrosswordLayout crosswordLayout : population) {
+            totalFitness += crosswordLayout.getCurrentFitness();
         }
 
-        return totalFitness / population.size();
+        return (double)totalFitness / population.size();
     }
 
     private static CrosswordLayout getBestLayout(List<CrosswordLayout> population) {
@@ -138,7 +143,7 @@ public class Main {
     }
 
     private static CrosswordLayout selectParent(List<CrosswordLayout> population) {
-        int tournamentSize = 5;
+        int tournamentSize = 10;
         CrosswordLayout bestLayout = population.get(random.nextInt(population.size()));
         for (int i = 1; i < tournamentSize; i++) {
             CrosswordLayout candidate = population.get(random.nextInt(population.size()));
@@ -158,7 +163,8 @@ public class Main {
     }
 
     private static void mutate(CrosswordLayout layout) {
-        if (random.nextDouble() < MUTATION_RATE) {
+        // !!! Aggressive mutation if fitness < 20 is a key for faster solution
+        if (random.nextDouble() < MUTATION_RATE || layout.getCurrentFitness() < 20) {
             layout.mutate();
         }
     }
@@ -483,15 +489,11 @@ class CrosswordLayout {
             CrosswordWord parent1Word = this.words.get(i);
             CrosswordWord parent2Word = partner.words.get(i);
 
-//            boolean wordParen = random.nextBoolean();
-//
-//            int row = wordParen ? parent1Word.row : parent2Word.row;
-//            int col = wordParen ? parent1Word.col : parent2Word.col;
-//            int orientation = wordParen ? parent1Word.orientation : parent2Word.orientation;
+            boolean wordParen = random.nextBoolean();
 
-            int row = random.nextBoolean() ? parent1Word.row : parent2Word.row;
-            int col = random.nextBoolean() ? parent1Word.col : parent2Word.col;
-            int orientation = random.nextBoolean() ? parent1Word.orientation : parent2Word.orientation;
+            int row = wordParen ? parent1Word.row : parent2Word.row;
+            int col = wordParen ? parent1Word.col : parent2Word.col;
+            int orientation = wordParen ? parent1Word.orientation : parent2Word.orientation;
 
             child.words.add(new CrosswordWord(parent1Word.word, row, col, orientation));
         }
