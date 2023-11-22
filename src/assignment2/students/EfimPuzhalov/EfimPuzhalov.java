@@ -5,6 +5,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
@@ -12,7 +13,7 @@ import java.util.Random;
 public class EfimPuzhalov {
     private static final int POPULATION_SIZE = 100; // 100
     private static final double CROSSOVER_RATE = 0.9; // 0.9
-    private static final double MUTATION_RATE = 0.7; // 7
+    private static final double MUTATION_RATE = 1;
     private static final int RESTART_GENERATION = 100000;
     private static final Random random = new Random();
 
@@ -114,6 +115,45 @@ public class EfimPuzhalov {
         return newGeneration;
     }
 
+    private static List<CrosswordLayout> produceNewGeneration2(List<CrosswordLayout> population) {
+        population.sort(Comparator.comparingInt(CrosswordLayout::getCurrentFitness));
+
+        List<CrosswordLayout> children = new ArrayList<>();
+        List<CrosswordLayout> parents = new ArrayList<>();
+
+        for (int i = 0; i < 25; i++) {
+            parents.add(population.get(i));
+        }
+
+        for (int i = 0; i < 25; i++) {
+            for (int j = 0; j < 25; j++) {
+                if (i != j) {
+                    CrosswordLayout child = crossover(parents.get(i), parents.get(j));
+                    mutate(child);
+                    children.add(child);
+                }
+            }
+        }
+
+        children.sort(Comparator.comparingInt(CrosswordLayout::calculateFitness));
+
+        List<CrosswordLayout> newGeneration = new ArrayList<>();
+
+        int currentParent = 0;
+        int currentChild = 0;
+        for (int i = 0; i < POPULATION_SIZE; i++) {
+            if (currentParent < 25 && parents.get(currentParent).getCurrentFitness() < children.get(currentChild).getCurrentFitness()) {
+                newGeneration.add(parents.get(currentParent));
+                currentParent++;
+            } else {
+                newGeneration.add(children.get(currentChild));
+                currentChild++;
+            }
+        }
+
+        return newGeneration;
+    }
+
     private static List<CrosswordLayout> initializePopulation() {
         List<CrosswordLayout> population = new ArrayList<>();
         for (int i = 0; i < POPULATION_SIZE; i++) {
@@ -163,8 +203,7 @@ public class EfimPuzhalov {
     }
 
     private static void mutate(CrosswordLayout layout) {
-        // !!! Aggressive mutation if fitness < 20 is a key for faster solution
-        if (random.nextDouble() < MUTATION_RATE || layout.getCurrentFitness() < 20) {
+        if (random.nextDouble() < MUTATION_RATE) {
             layout.mutate();
         }
     }
