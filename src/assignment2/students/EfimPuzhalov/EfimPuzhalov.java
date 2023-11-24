@@ -3,7 +3,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -45,10 +44,7 @@ public class EfimPuzhalov {
     }
 
     private static File[] getAllFiles() {
-        String projectPath = Paths.get("").toAbsolutePath().toString();
-        String absoluteDirPath = Paths.get(projectPath, INPUTS_DIR_NAME).toString();
-        File inputDirectory = new File(absoluteDirPath);
-
+        File inputDirectory = new File(INPUTS_DIR_NAME);
         return inputDirectory.listFiles();
     }
 
@@ -183,7 +179,7 @@ public class EfimPuzhalov {
     }
 
     private static CrosswordLayout selectParent(List<CrosswordLayout> population) {
-        int tournamentSize = 10;
+        int tournamentSize = POPULATION_SIZE / 10;
         CrosswordLayout bestLayout = population.get(random.nextInt(population.size()));
         for (int i = 1; i < tournamentSize; i++) {
             CrosswordLayout candidate = population.get(random.nextInt(population.size()));
@@ -244,9 +240,16 @@ class CrosswordLayout {
     public CrosswordLayout(List<String> inputWords) {
         this.words = new ArrayList<>();
         for (String word : inputWords) {
-            int row = random.nextInt(GRID_SIZE - 1);
-            int col = random.nextInt(GRID_SIZE - 1);
+            int row;
+            int col;
             int orientation = random.nextInt(2); // 0 for horizontal, 1 for vertical
+            if (orientation == 0) {
+                col = random.nextInt(GRID_SIZE - word.length() + 1);
+                row = random.nextInt(GRID_SIZE);
+            } else {
+                col = random.nextInt(GRID_SIZE);
+                row = random.nextInt(GRID_SIZE - word.length() + 1);
+            }
             words.add(new CrosswordWord(word, row, col, orientation));
         }
     }
@@ -266,10 +269,6 @@ class CrosswordLayout {
     public int calculateFitness() {
         int fitness = 0;
 
-        for (CrosswordWord word : words) {
-            fitness += outOfBoundsCheck(word);
-        }
-
         fitness += overlapCheck();
         fitness += connectivityCheck();
         fitness += neighbouringWordsCheck();
@@ -281,21 +280,6 @@ class CrosswordLayout {
 
     private boolean charInBounds(int row, int col) {
         return row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE;
-    }
-
-    private int outOfBoundsCheck(CrosswordWord word) {
-        int penalty = 0;
-        char[] charArray = word.word.toCharArray();
-        for (int i = 0; i < charArray.length; i++) {
-            int row = word.row + (word.orientation == 0 ? 0 : i);
-            int col = word.col + (word.orientation == 1 ? 0 : i);
-
-            if (!charInBounds(row, col)) {
-                // Penalty for out of bounds position of the word
-                penalty += 10;
-            }
-        }
-        return penalty;
     }
 
     private CrosswordWord getWordByCoordinates(int row, int col, int orientation) {
@@ -520,7 +504,6 @@ class CrosswordLayout {
         dfs(row, col + 1, visited);
     }
 
-    // TODO check the best option
     public CrosswordLayout crossover(CrosswordLayout partner) {
         CrosswordLayout child = new CrosswordLayout(new ArrayList<>());
 
@@ -545,9 +528,14 @@ class CrosswordLayout {
         CrosswordWord word = words.get(wordIndex);
 
         // Randomly change word's position or orientation
-        word.row = random.nextInt(GRID_SIZE - 1);
-        word.col = random.nextInt(GRID_SIZE - 1);
         word.orientation = random.nextInt(2);
+        if (word.orientation == 0) {
+            word.col = random.nextInt(GRID_SIZE - word.word.length() + 1);
+            word.row = random.nextInt(GRID_SIZE);
+        } else {
+            word.col = random.nextInt(GRID_SIZE);
+            word.row = random.nextInt(GRID_SIZE - word.word.length() + 1);
+        }
     }
 
     public CrosswordLayout copy() {
