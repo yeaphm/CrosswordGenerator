@@ -1,26 +1,59 @@
 package assignment2.students.EfimPuzhalov;
+import java.io.FileWriter;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
-
 public class EfimPuzhalov {
-    private static final int POPULATION_SIZE = 100; // 100
-    private static final double CROSSOVER_RATE = 0.9; // 0.9
+    private static final int POPULATION_SIZE = 100;
+    private static final double CROSSOVER_RATE = 0.9;
+    private static final double TOURNAMENT_RATIO = 0.1;
     private static final double MUTATION_RATE = 1;
     private static final int RESTART_GENERATION = 100000;
     private static final Random random = new Random();
-
     private static final List<String> words = new ArrayList<>();
     private static final String INPUTS_DIR_NAME = "inputs";
+    private static final String OUTPUTS_DIR_NAME = "outputs";
+    private static String outputsPath = "";
+    private static String outputFileName = "";
 
     public static void main(String[] args) {
         start();
+    }
+
+    private static void start() {
+        // Construct the full path to the "outputs" directory
+        outputsPath = getCurrentPath() + OUTPUTS_DIR_NAME;
+
+        File outputsDirectory = new File(outputsPath);
+
+        // Create "outputs" directory if it doesn't exist
+        if (!outputsDirectory.exists()) {
+            boolean created = outputsDirectory.mkdirs();
+            if (!created) {
+                System.out.println("Failed to create the 'outputs' directory.");
+                return;
+            }
+        }
+
+        File[] files = getAllFiles();
+
+        if (files != null) {
+            for (File file : files) {
+                if (file.isFile()) {
+                    outputFileName = getOutputFileName(file);
+                    readAllWordsInFile(file);
+                    buildCrossword();
+                    words.clear();
+                }
+            }
+        } else {
+            System.out.println("No files found in the input directory.");
+        }
     }
 
     private static void readAllWordsInFile(File file) {
@@ -30,7 +63,7 @@ public class EfimPuzhalov {
         try (FileReader fileReader = new FileReader(file);
              BufferedReader bufferedReader = new BufferedReader(fileReader)) {
 
-            // Read all lines from the file
+            // Read all words from the file
             String line;
             while ((line = bufferedReader.readLine()) != null) {
                 if (line.length() > 1) {
@@ -43,24 +76,50 @@ public class EfimPuzhalov {
         }
     }
 
+    private static String getCurrentPath() {
+        // Get the package name
+        String packageName = EfimPuzhalov.class.getPackageName();
+
+        // Replace dots with file separator
+        String packagePath = packageName.replace('.', File.separatorChar);
+
+        // Get the current working directory
+        String currentPath = System.getProperty("user.dir");
+
+        // Construct the full path to the "inputs" directory
+        return currentPath + File.separator + "src" + File.separator + packagePath + File.separator;
+    }
+
     private static File[] getAllFiles() {
-        File inputDirectory = new File(INPUTS_DIR_NAME);
+        String inputsPath = getCurrentPath() + INPUTS_DIR_NAME;
+
+        File inputDirectory = new File(inputsPath);
+
+        if (!inputDirectory.exists() || !inputDirectory.isDirectory()) {
+            System.out.println("Input directory does not exist or is not a directory.");
+            return new File[0]; // Return an empty array to indicate no files found
+        }
+
         return inputDirectory.listFiles();
     }
 
-    private static void start() {
-        File[] files = getAllFiles();
+    private static String getOutputFileName(File inputFile) {
+        // Create the output file with the corresponding name
+        String inputFileName = inputFile.getName();
+        return inputFileName.replace("input", "output");
+    }
 
-        if (files != null) {
-            for (File file : files) {
-                if (file.isFile()) {
-                    readAllWordsInFile(file);
-                    buildCrossword();
-                    words.clear();
-                }
+    private static void writeToOutputFile(CrosswordLayout resultLayout) {
+        File outputFile = new File(outputsPath, outputFileName);
+
+        try (FileWriter fileWriter = new FileWriter(outputFile)) {
+            for (CrosswordWord word : resultLayout.words) {
+                // Format the word information and write it to a new line
+                String line = String.format("%d %d %d", word.row, word.col, word.orientation);
+                fileWriter.write(line + System.lineSeparator());
             }
-        } else {
-            System.out.println("No files found in the input directory.");
+        } catch (IOException e) {
+            System.out.println("Failed to create the output file: " + e.getMessage());
         }
     }
 
@@ -85,9 +144,11 @@ public class EfimPuzhalov {
             double avgFitness = getAverageFitness(population);
 
             if (bestLayout.getCurrentFitness() <= 0) {
-                System.out.println("Generation: " + generation + " | Average fitness: " + avgFitness + " | Best fitness: " + bestLayout.calculateFitness());
+                System.out.println("Generation: " + generation + " | Average fitness: " + avgFitness + " | Best fitness: " + bestLayout.getCurrentFitness());
                 bestLayout.printCrossword();
+                writeToOutputFile(bestLayout);
                 System.out.println("Solution found!");
+
                 break;
             }
 
@@ -106,45 +167,6 @@ public class EfimPuzhalov {
             CrosswordLayout child = crossover(parent1, parent2);
             mutate(child);
             newGeneration.add(child);
-        }
-
-        return newGeneration;
-    }
-
-    private static List<CrosswordLayout> produceNewGeneration2(List<CrosswordLayout> population) {
-        population.sort(Comparator.comparingInt(CrosswordLayout::getCurrentFitness));
-
-        List<CrosswordLayout> children = new ArrayList<>();
-        List<CrosswordLayout> parents = new ArrayList<>();
-
-        for (int i = 0; i < 25; i++) {
-            parents.add(population.get(i));
-        }
-
-        for (int i = 0; i < 25; i++) {
-            for (int j = 0; j < 25; j++) {
-                if (i != j) {
-                    CrosswordLayout child = crossover(parents.get(i), parents.get(j));
-                    mutate(child);
-                    children.add(child);
-                }
-            }
-        }
-
-        children.sort(Comparator.comparingInt(CrosswordLayout::calculateFitness));
-
-        List<CrosswordLayout> newGeneration = new ArrayList<>();
-
-        int currentParent = 0;
-        int currentChild = 0;
-        for (int i = 0; i < POPULATION_SIZE; i++) {
-            if (currentParent < 25 && parents.get(currentParent).getCurrentFitness() < children.get(currentChild).getCurrentFitness()) {
-                newGeneration.add(parents.get(currentParent));
-                currentParent++;
-            } else {
-                newGeneration.add(children.get(currentChild));
-                currentChild++;
-            }
         }
 
         return newGeneration;
@@ -171,7 +193,7 @@ public class EfimPuzhalov {
     private static CrosswordLayout getBestLayout(List<CrosswordLayout> population) {
         CrosswordLayout bestLayout = population.get(0);
         for (CrosswordLayout layout : population) {
-            if (layout.calculateFitness() < bestLayout.calculateFitness()) {
+            if (layout.getCurrentFitness() < bestLayout.getCurrentFitness()) {
                 bestLayout = layout;
             }
         }
@@ -179,7 +201,7 @@ public class EfimPuzhalov {
     }
 
     private static CrosswordLayout selectParent(List<CrosswordLayout> population) {
-        int tournamentSize = POPULATION_SIZE / 10;
+        int tournamentSize = (int)(POPULATION_SIZE * TOURNAMENT_RATIO);
         CrosswordLayout bestLayout = population.get(random.nextInt(population.size()));
         for (int i = 1; i < tournamentSize; i++) {
             CrosswordLayout candidate = population.get(random.nextInt(population.size()));
@@ -203,17 +225,6 @@ public class EfimPuzhalov {
             layout.mutate();
         }
     }
-
-    private static CrosswordLayout getWorstLayout(List<CrosswordLayout> population) {
-        CrosswordLayout worstLayout = population.get(0);
-        for (int i = 1; i < population.size(); i++) {
-            CrosswordLayout candidate = population.get(i);
-            if (candidate.getCurrentFitness() > worstLayout.getCurrentFitness()) {
-                worstLayout = candidate;
-            }
-        }
-        return worstLayout;
-    }
 }
 
 class CrosswordWord {
@@ -231,10 +242,11 @@ class CrosswordWord {
 }
 
 class CrosswordLayout {
+    private static final int PENALTY = 10;
     private static final int GRID_SIZE = 20;
     private static final char[][] grid = new char[GRID_SIZE][GRID_SIZE];
     private static final Random random = new Random();
-    private final List<CrosswordWord> words;
+    public final List<CrosswordWord> words;
     private int currentFitness;
 
     public CrosswordLayout(List<String> inputWords) {
@@ -252,10 +264,16 @@ class CrosswordLayout {
             }
             words.add(new CrosswordWord(word, row, col, orientation));
         }
+
+        currentFitness = -1;
     }
 
     public int getCurrentFitness() {
-        return currentFitness;
+        if (this.currentFitness < 0) {
+            this.currentFitness = this.calculateFitness();
+        }
+
+        return this.currentFitness;
     }
 
     private void resetGrid() {
@@ -266,7 +284,7 @@ class CrosswordLayout {
         }
     }
 
-    public int calculateFitness() {
+    private int calculateFitness() {
         int fitness = 0;
 
         fitness += overlapCheck();
@@ -362,19 +380,19 @@ class CrosswordLayout {
                             // Check for crossing word
                             if (charInBounds(row - 1, col) && grid[row - 1][col] != '-') {
                                 if (isCrossingWordAbsent(word, true)) {
-                                    penalty += 10;
+                                    penalty += PENALTY;
                                 }
                             }
                         }
                         else if (charIdx == charArray.length - 1) { // Last char check
                             if (charInBounds(row, col + 1) && grid[row][col + 1] != '-') {
-                                penalty += 10; // penalty for adjacent word from the right
+                                penalty += PENALTY; // penalty for adjacent word from the right
                             }
 
                             // Check for crossing word
                             if (charInBounds(row - 1, col) && grid[row - 1][col] != '-') {
                                 if (isCrossingWordAbsent(word, false)) {
-                                    penalty += 10;
+                                    penalty += PENALTY;
                                 }
                             }
                         }
@@ -383,7 +401,7 @@ class CrosswordLayout {
                         if (charInBounds(row - 1, col) && grid[row - 1][col] != '-') {
                             adjCharCounterSideUp++;
                             if (adjCharCounterSideUp > 1) {
-                                penalty += 10; // penalty for the up adjacent word
+                                penalty += PENALTY; // penalty for the up adjacent word
                             }
                         } else if (charInBounds(row - 1, col) && grid[row - 1][col] == '-') {
                             adjCharCounterSideUp = 0;
@@ -391,7 +409,7 @@ class CrosswordLayout {
                         if (charInBounds(row + 1, col) && grid[row + 1][col] != '-') {
                             adjCharCounterSideDown++;
                             if (adjCharCounterSideDown > 1) {
-                                penalty += 10; // penalty for the down adjacent word
+                                penalty += PENALTY; // penalty for the down adjacent word
                             }
                         } else if (charInBounds(row + 1, col) && grid[row + 1][col] == '-') {
                             adjCharCounterSideDown = 0;
@@ -404,25 +422,25 @@ class CrosswordLayout {
                     if (charInBounds(row, col)) {
                         if (charIdx == 0) { // First char check
                             if (charInBounds(row - 1, col) && grid[row - 1][col] != '-') {
-                                penalty += 10; // penalty for adjacent word from the up
+                                penalty += PENALTY; // penalty for adjacent word from the up
                             }
 
                             // Check for crossing word
                             if (charInBounds(row, col - 1) && grid[row][col - 1] != '-') {
                                 if (isCrossingWordAbsent(word, true)) {
-                                    penalty += 10;
+                                    penalty += PENALTY;
                                 }
                             }
                         }
                         else if (charIdx == charArray.length - 1) { // Last char check
                             if (charInBounds(row + 1, col) && grid[row + 1][col] != '-') {
-                                penalty += 10; // penalty for adjacent word from the down
+                                penalty += PENALTY; // penalty for adjacent word from the down
                             }
 
                             // Check for crossing word
                             if (charInBounds(row, col - 1) && grid[row][col - 1] != '-') {
                                 if (isCrossingWordAbsent(word, false)) {
-                                    penalty += 10;
+                                    penalty += PENALTY;
                                 }
                             }
                         }
@@ -431,7 +449,7 @@ class CrosswordLayout {
                         if (charInBounds(row, col - 1) && grid[row][col - 1] != '-') {
                             adjCharCounterSideLeft++;
                             if (adjCharCounterSideLeft > 1) {
-                                penalty += 10; // penalty for the left adjacent word
+                                penalty += PENALTY; // penalty for the left adjacent word
                             }
                         } else if (charInBounds(row, col - 1) && grid[row][col - 1] == '-') {
                             adjCharCounterSideLeft = 0;
@@ -439,7 +457,7 @@ class CrosswordLayout {
                         if (charInBounds(row, col + 1) && grid[row][col + 1] != '-') {
                             adjCharCounterSideRight++;
                             if (adjCharCounterSideRight > 1) {
-                                penalty += 10; // penalty for the down adjacent word
+                                penalty += PENALTY; // penalty for the down adjacent word
                             }
                         } else if (charInBounds(row, col + 1) && grid[row][col + 1] == '-') {
                             adjCharCounterSideRight = 0;
@@ -464,7 +482,7 @@ class CrosswordLayout {
 
                 if (charInBounds(row, col)) {
                     if (grid[row][col] != '-' && grid[row][col] != charArray[i]) {
-                        penalty += 10; // Penalty for overlapping different characters
+                        penalty += PENALTY; // Penalty for overlapping different characters
                     }
                     grid[row][col] = charArray[i];
                 }
@@ -487,7 +505,7 @@ class CrosswordLayout {
             }
         }
 
-        return connectedComponents > 1 ? connectedComponents * 10 : 0; // Penalty for disconnected components
+        return connectedComponents > 1 ? connectedComponents * PENALTY : 0; // Penalty for disconnected components
     }
 
     private void dfs(int row, int col, boolean[][] visited) {
@@ -536,6 +554,8 @@ class CrosswordLayout {
             word.col = random.nextInt(GRID_SIZE);
             word.row = random.nextInt(GRID_SIZE - word.word.length() + 1);
         }
+
+        this.currentFitness = -1;
     }
 
     public CrosswordLayout copy() {
