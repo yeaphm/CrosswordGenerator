@@ -1,0 +1,7 @@
+12 15 0 cage
+9 18 1 cemetery
+15 11 0 chemistry
+10 13 1 engine
+17 8 0 fairytale
+10 10 0 gate
+14 15 1 pillow
