@@ -20,7 +20,7 @@ The project is aimed to construct a connected crosswords from the provided word 
     
 ## Usage/Examples
 
-* The input is implemented via "input" folder, where you can put your .txt files with list of words for the crossword. (Some of the inputs are already provided as an example.) The inputs are represented by M *.txt files ending with a new line character.
+* The input is implemented via "src/inputs" folder, where you can put your .txt files with list of words for the crossword. (Some of the inputs are already provided as an example.) The inputs are represented by M *.txt files ending with a new line character.
 
 * The main output implemented in console, building a crossword with some statistics provided.
 
