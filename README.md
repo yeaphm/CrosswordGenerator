@@ -24,11 +24,12 @@ The project is aimed to construct a connected crosswords from the provided word 
 
 * The main output implemented in console, building a crossword with some statistics provided.
 
-* The outputs directory created automatically. The outputs are represented by *.txt files ending with a new line character. The output contains M lines, corresponding to each input word. Each line contain 3 integers: 
-    * Crossword’s row number X of the word’s first symbol (𝑋 ∈ [0; 19])
-    * Crossword’s column number Y of the word’s first symbol (𝑌 ∈ [0; 19])
-    * Horizontal (0) or Vertical (1) location
-    The numeration starts from the top left corner.
+* The outputs directory created automatically. The outputs are represented by *.txt files ending with a new line character. The output contains M lines, corresponding to each input word.
+    * Each line contain 3 integers: 
+        * Crossword’s row number X of the word’s first symbol (𝑋 ∈ [0; 19])
+        * Crossword’s column number Y of the word’s first symbol (𝑌 ∈ [0; 19])
+        * Horizontal (0) or Vertical (1) location
+    * The numeration starts from the top left corner.
 
 
 
